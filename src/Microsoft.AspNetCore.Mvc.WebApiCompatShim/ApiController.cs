@@ -543,6 +543,7 @@ namespace System.Web.Http
         }
 
         /// <inheritdoc />
+        [NonAction]
         public void Dispose() => Dispose(disposing: true);
 
         /// <summary>

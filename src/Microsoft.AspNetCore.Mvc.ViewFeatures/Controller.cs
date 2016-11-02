@@ -364,6 +364,7 @@ namespace Microsoft.AspNetCore.Mvc
         }
 
         /// <inheritdoc />
+        [NonAction]
         public void Dispose() => Dispose(disposing: true);
 
         /// <summary>
