@@ -629,9 +629,18 @@ namespace Microsoft.AspNetCore.Mvc.Internal
 
         private bool IsIDisposableMethod(MethodInfo methodInfo, TypeInfo typeInfo)
         {
+            // Ideally we do not want Dispose method to be exposed as an action. However there are some scenarios where a user
+            // might want to expose a method with name "Dispose" (even though they might not be really disposing resources)
+            // Example: A controller deriving from MVC's Controller type might wish to have a method with name Dispose,
+            // in which case they can use the "new" keyword to hide the base controller's declaration.
+
+            // Find where the method was originally declared
+            var baseMethodInfo = methodInfo.GetBaseDefinition();
+            var declaringTypeInfo = baseMethodInfo.DeclaringType.GetTypeInfo();
+
             return
-                (typeof(IDisposable).GetTypeInfo().IsAssignableFrom(typeInfo) &&
-                 typeInfo.GetRuntimeInterfaceMap(typeof(IDisposable)).TargetMethods[0] == methodInfo);
+                (typeof(IDisposable).GetTypeInfo().IsAssignableFrom(declaringTypeInfo) &&
+                 declaringTypeInfo.GetRuntimeInterfaceMap(typeof(IDisposable)).TargetMethods[0] == baseMethodInfo);
         }
 
         private bool IsSilentRouteAttribute(IRouteTemplateProvider routeTemplateProvider)

@@ -884,7 +884,7 @@ namespace Microsoft.AspNetCore.Mvc.Internal
         }
 
         [Fact]
-        public void ControllerDispose_NotAnAction_WhenDerivedController_ExplicitlyImplementsIDisposable()
+        public void ControllerDispose_ExplicitlyImplemented_IDisposableMethods_AreTreatedAs_NonActions()
         {
             // Arrange
             var builder = new TestApplicationModelProvider();
@@ -900,7 +900,7 @@ namespace Microsoft.AspNetCore.Mvc.Internal
         }
 
         [Fact]
-        public void ControllerDispose_NotAnAction_WhenDerivedController_HidesControllerDispose()
+        public void ControllerDispose_MethodsNamedDispose_AreTreatedAsActions()
         {
             // Arrange
             var builder = new TestApplicationModelProvider();
