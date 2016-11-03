@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc.Razor.Host;
 using Microsoft.AspNetCore.Mvc.ViewComponents;
 using Microsoft.AspNetCore.Razor.Compilation.TagHelpers;
 using Microsoft.AspNetCore.Razor.Runtime.TagHelpers;
+using Microsoft.Extensions.Internal;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Internal
 {
@@ -89,6 +90,8 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Internal
         {
             var methodParameters = viewComponentDescriptor.MethodInfo.GetParameters();
             var attributeDescriptors = new List<TagHelperAttributeDescriptor>();
+            var indexerDescriptors = new List<TagHelperAttributeDescriptor>();
+            var requiredAttributeDescriptors = new List<TagHelperRequiredAttributeDescriptor>();
 
             foreach (var parameter in methodParameters)
             {
@@ -105,14 +108,52 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Internal
                 descriptor.IsIndexer = false;
 
                 attributeDescriptors.Add(descriptor);
+
+                var indexerDescriptor = GetIndexerAttributeDescriptor(parameter, lowerKebabName);
+                if (indexerDescriptor != null)
+                {
+                    indexerDescriptors.Add(indexerDescriptor);
+                }
+                else
+                {
+                    requiredAttributeDescriptors.Add(new TagHelperRequiredAttributeDescriptor
+                    {
+                        Name = lowerKebabName
+                    });
+                }
             }
 
+            attributeDescriptors.AddRange(indexerDescriptors);
             tagHelperDescriptor.Attributes = attributeDescriptors;
-            tagHelperDescriptor.RequiredAttributes = tagHelperDescriptor.Attributes.Select(
-                attribute => new TagHelperRequiredAttributeDescriptor
-                {
-                    Name = attribute.Name
-                });
+            tagHelperDescriptor.RequiredAttributes = requiredAttributeDescriptors;
+        }
+
+        private TagHelperAttributeDescriptor GetIndexerAttributeDescriptor(ParameterInfo parameter, string name)
+        {
+            var dictionaryTypeArguments = ClosedGenericMatcher.ExtractGenericInterface(
+                parameter.ParameterType,
+                typeof(IDictionary<,>))
+                ?.GenericTypeArguments
+                .Select(t => t.IsGenericParameter ? null : t)
+                .ToArray();
+
+            if (dictionaryTypeArguments?[0] != typeof(string))
+            {
+                return null;
+            }
+
+            var type = dictionaryTypeArguments[1];
+            var descriptor = new TagHelperAttributeDescriptor
+            {
+                Name = name + "-",
+                PropertyName = parameter.Name,
+                TypeName = GetCSharpTypeName(type)
+            };
+
+            descriptor.IsEnum = type.GetTypeInfo().IsEnum;
+            descriptor.IsIndexer = true;
+
+            return descriptor;
         }
 
         private string GetTagName(ViewComponentDescriptor descriptor)
