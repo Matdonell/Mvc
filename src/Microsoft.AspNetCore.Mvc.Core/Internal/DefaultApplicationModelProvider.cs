@@ -390,7 +390,7 @@ namespace Microsoft.AspNetCore.Mvc.Internal
             }
 
             // Dispose method implemented from IDisposable is not valid
-            if (IsIDisposableMethod(methodInfo, typeInfo))
+            if (IsIDisposableMethod(methodInfo))
             {
                 return false;
             }
@@ -627,7 +627,7 @@ namespace Microsoft.AspNetCore.Mvc.Internal
             return selectorModel;
         }
 
-        private bool IsIDisposableMethod(MethodInfo methodInfo, TypeInfo typeInfo)
+        private bool IsIDisposableMethod(MethodInfo methodInfo)
         {
             // Ideally we do not want Dispose method to be exposed as an action. However there are some scenarios where a user
             // might want to expose a method with name "Dispose" (even though they might not be really disposing resources)
