@@ -4,6 +4,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.Razor.Compilation;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Primitives;
 using Moq;
 using Xunit;
@@ -95,6 +96,66 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Internal
             Assert.True(result.Success);
             var actual = result.RazorPageFactory();
             Assert.Equal("/file-exists", actual.Path);
+        }
+
+        [Fact]
+        public void CreateFactory_LogsPrecompiledViewFound()
+        {
+            // Arrange
+            var sink = new TestSink();
+            var loggerFactory = new TestLoggerFactory(sink, enabled: true);
+
+            var relativePath = "/file-exists";
+            var compilerCache = new Mock<ICompilerCache>();
+            compilerCache
+                .Setup(f => f.GetOrAdd(It.IsAny<string>(), It.IsAny<Func<RelativeFileInfo, CompilationResult>>()))
+                .Returns(new CompilerCacheResult(relativePath, new CompilationResult(typeof(TestRazorPage)), new IChangeToken[0]));
+            var compilerCacheProvider = new Mock<ICompilerCacheProvider>();
+            compilerCacheProvider
+                .SetupGet(c => c.Cache)
+                .Returns(compilerCache.Object);
+            var factoryProvider = new DefaultRazorPageFactoryProvider(
+                Mock.Of<IRazorCompilationService>(),
+                compilerCacheProvider.Object,
+                loggerFactory);
+
+            // Act
+            var result = factoryProvider.CreateFactory(relativePath);
+
+            // Assert
+            Assert.Equal($"Precompiled view found and used.", sink.Writes[0].State.ToString());
+        }
+
+        [Fact]
+        public void CreateFactory_LogsPrecompiledViewNotFound()
+        {
+            // Arrange
+            var sink = new TestSink();
+            var loggerFactory = new TestLoggerFactory(sink, enabled: true);
+
+            var expirationTokens = new[]
+            {
+                Mock.Of<IChangeToken>(),
+                Mock.Of<IChangeToken>(),
+            };
+            var compilerCache = new Mock<ICompilerCache>();
+            compilerCache
+                .Setup(f => f.GetOrAdd(It.IsAny<string>(), It.IsAny<Func<RelativeFileInfo, CompilationResult>>()))
+                .Returns(new CompilerCacheResult(expirationTokens));
+            var compilerCacheProvider = new Mock<ICompilerCacheProvider>();
+            compilerCacheProvider
+                .SetupGet(c => c.Cache)
+                .Returns(compilerCache.Object);
+            var factoryProvider = new DefaultRazorPageFactoryProvider(
+                Mock.Of<IRazorCompilationService>(),
+                compilerCacheProvider.Object,
+                loggerFactory);
+
+            // Act
+            var result = factoryProvider.CreateFactory("/file-does-not-exist");
+
+            // Assert
+            Assert.Equal("Precompiled view not found.", sink.Writes[0].State.ToString());
         }
 
         private class TestRazorPage : RazorPage

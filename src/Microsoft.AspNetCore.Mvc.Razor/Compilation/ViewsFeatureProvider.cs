@@ -7,6 +7,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
+using Microsoft.AspNetCore.Mvc.Razor.Internal;
+using Microsoft.Extensions.Logging;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
 {
@@ -30,6 +32,8 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
         /// </summary>
         public static readonly string ViewInfoContainerTypeName = "__PrecompiledViewCollection";
 
+        private ILogger _logger;
+
         /// <inheritdoc />
         public void PopulateFeature(IEnumerable<ApplicationPart> parts, ViewsFeature feature)
         {
@@ -45,6 +49,29 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
 
                 foreach (var item in viewContainer.ViewInfos)
                 {
+                    feature.Views[item.Path] = item.Type;
+                }
+            }
+        }
+
+
+        /// <inheritdoc />
+        public void PopulateFeature(IEnumerable<ApplicationPart> parts, ViewsFeature feature, ILoggerFactory loggerFactory)
+        {
+            foreach (var assemblyPart in parts.OfType<AssemblyPart>())
+            {
+                var viewInfoContainerTypeName = GetViewInfoContainerType(assemblyPart);
+                if (viewInfoContainerTypeName == null)
+                {
+                    continue;
+                }
+
+                var viewContainer = (ViewInfoContainer)Activator.CreateInstance(viewInfoContainerTypeName);
+
+                foreach (var item in viewContainer.ViewInfos)
+                {
+                    _logger = loggerFactory?.CreateLogger<ViewsFeatureProvider>();
+                    _logger?.PrecompiledViewAssemblyPart(assemblyPart);
                     feature.Views[item.Path] = item.Type;
                 }
             }

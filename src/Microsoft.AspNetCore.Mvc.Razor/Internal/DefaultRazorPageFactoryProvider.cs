@@ -3,7 +3,7 @@
 
 using System;
 using Microsoft.AspNetCore.Mvc.Razor.Compilation;
-using Microsoft.AspNetCore.Mvc.Razor.Internal;
+using Microsoft.Extensions.Logging;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Internal
 {
@@ -19,6 +19,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Internal
         private readonly Func<RelativeFileInfo, CompilationResult> _compileDelegate;
         private readonly ICompilerCacheProvider _compilerCacheProvider;
         private ICompilerCache _compilerCache;
+        private readonly ILogger _logger;
 
         /// <summary>
         /// Initializes a new instance of <see cref="DefaultRazorPageFactoryProvider"/>.
@@ -28,9 +29,24 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Internal
         public DefaultRazorPageFactoryProvider(
             IRazorCompilationService razorCompilationService,
             ICompilerCacheProvider compilerCacheProvider)
+            : this(razorCompilationService, compilerCacheProvider, loggerFactory: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of <see cref="DefaultRazorPageFactoryProvider"/>.
+        /// </summary>
+        /// <param name="razorCompilationService">The <see cref="IRazorCompilationService"/>.</param>
+        /// <param name="compilerCacheProvider">The <see cref="ICompilerCacheProvider"/>.</param>
+        /// <param name="loggerFactory">The <see cref="ILoggerFactory"/>.</param>
+        public DefaultRazorPageFactoryProvider(
+            IRazorCompilationService razorCompilationService,
+            ICompilerCacheProvider compilerCacheProvider,
+            ILoggerFactory loggerFactory)
         {
             _compileDelegate = razorCompilationService.Compile;
             _compilerCacheProvider = compilerCacheProvider;
+            _logger = loggerFactory?.CreateLogger<DefaultRazorPageFactoryProvider>();
         }
 
         private ICompilerCache CompilerCache
@@ -62,10 +78,12 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Internal
             var result = CompilerCache.GetOrAdd(relativePath, _compileDelegate);
             if (result.Success)
             {
+                _logger?.PrecompiledViewFound();
                 return new RazorPageFactoryResult(result.PageFactory, result.ExpirationTokens);
             }
             else
             {
+                _logger?.PrecompiledViewNotFound();
                 return new RazorPageFactoryResult(result.ExpirationTokens);
             }
         }

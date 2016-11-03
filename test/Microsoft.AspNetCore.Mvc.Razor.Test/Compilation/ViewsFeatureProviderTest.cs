@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
+using Microsoft.Extensions.Logging.Testing;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
@@ -67,6 +68,26 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
                     Assert.Equal("/Views/test/Index.cshtml", view.Key);
                     Assert.Equal(typeof(object), view.Value);
                 });
+        }
+
+        [Fact]
+        public void PopulateFeature_LogsPrecompiledView()
+        {
+            // Arrange
+            var sink = new TestSink();
+            var loggerFactory = new TestLoggerFactory(sink, enabled: true);
+
+            var part = new AssemblyPart(typeof(object).GetTypeInfo().Assembly);
+            var featureProvider = new TestableViewsFeatureProvider(new Dictionary<AssemblyPart, Type>
+            {
+                { part, typeof(ViewInfoContainer1) }
+            });
+
+            // Act
+            featureProvider.PopulateFeature(new List<ApplicationPart>() { part }, new ViewsFeature(), loggerFactory);
+
+            // Assert
+            Assert.Equal($"Precompiled view found in '{part.Name}'.", sink.Writes[0].State.ToString());
         }
 
         private class TestableViewsFeatureProvider : ViewsFeatureProvider

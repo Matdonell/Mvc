@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
 
 namespace Microsoft.AspNetCore.Mvc.Razor.Internal
 {
@@ -19,6 +20,10 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Internal
 
         private static readonly Action<ILogger, string, string, Exception> _viewLookupCacheMiss;
         private static readonly Action<ILogger, string, string, Exception> _viewLookupCacheHit;
+
+        private static readonly Action<ILogger, Exception> _precompiledViewFound;
+        private static readonly Action<ILogger, Exception> _precompiledViewNotFound;
+        private static readonly Action<ILogger, string, Exception> _precompiledViewAssemblyPart;
 
         static MvcRazorLoggerExtensions()
         {
@@ -51,6 +56,21 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Internal
                 LogLevel.Debug,
                 2,
                 "Compilation of the generated code for the Razor file at '{FilePath}' completed in {ElapsedMilliseconds}ms.");
+
+            _precompiledViewFound = LoggerMessage.Define(
+                LogLevel.Debug,
+                1,
+                "Precompiled view found and used.");
+
+            _precompiledViewNotFound = LoggerMessage.Define(
+                LogLevel.Debug,
+                1,
+                "Precompiled view not found.");
+
+            _precompiledViewAssemblyPart = LoggerMessage.Define<string>(
+                LogLevel.Debug,
+                2,
+                "Precompiled view found in '{AssemblyPart}'.");
         }
 
         public static void RazorFileToCodeCompilationStart(this ILogger logger, string filePath)
@@ -93,6 +113,21 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Internal
                 var elapsed = new TimeSpan((long)(TimestampToTicks * (currentTimestamp - startTimestamp)));
                 _generatedCodeToAssemblyCompilationEnd(logger, filePath, elapsed.TotalMilliseconds, null);
             }
+        }
+
+        public static void PrecompiledViewFound(this ILogger logger)
+        {
+            _precompiledViewFound(logger, null);
+        }
+
+        public static void PrecompiledViewNotFound(this ILogger logger)
+        {
+            _precompiledViewNotFound(logger, null);
+        }
+
+        public static void PrecompiledViewAssemblyPart(this ILogger logger, AssemblyPart assemblyPart)
+        {
+            _precompiledViewAssemblyPart(logger, assemblyPart.Name, null);
         }
     }
 }
